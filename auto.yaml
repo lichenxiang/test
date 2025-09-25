@@ -1,6 +1,6 @@
 blueprint:
-  name: "民宿节电逻辑（完全零配置）"
-  description: "门关闭触发空调延时，随意贴可保持供电，内置定时器与临时状态"
+  name: "民宿节电逻辑（完全零配置，多随意贴）"
+  description: "门关闭触发空调延时，随意贴可保持供电，内置临时状态，无需用户创建 timer 或 input_boolean"
   domain: automation
   input:
     door_sensor:
@@ -36,15 +36,15 @@ max_exceeded: silent
 trigger:
   - platform: state
     entity_id: !input door_sensor
-    to: 'off'
+    to: 'off'  # 门关闭
 
 action:
-  # 临时状态
+  # 初始化临时状态
   - variables:
       waiting_for_button: true
       keep_power: false
 
-  # 播报提示
+  # 小爱音箱播报
   - service: media_player.play_media
     target:
       entity_id: !input xiaoai_speaker
@@ -60,6 +60,7 @@ action:
     timeout: '00:01:00'
     continue_on_timeout: true
 
+  # 判断随意贴是否按下
   - choose:
       - conditions:
           - condition: template
@@ -68,7 +69,7 @@ action:
           - variables:
               keep_power: true
 
-  # 判断空调控制逻辑（带二次门状态检查）
+  # 空调控制逻辑（带二次门状态检查）
   - choose:
       - conditions:
           - condition: template
@@ -88,4 +89,9 @@ action:
           - delay: '00:00:03'
           - service: switch.turn_on
             target:
-              entity_id: !input air_condit
+              entity_id: !input air_conditioner
+
+  # 清理临时状态
+  - variables:
+      waiting_for_button: false
+      keep_power: false
