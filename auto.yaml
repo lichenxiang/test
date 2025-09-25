@@ -28,11 +28,7 @@ blueprint:
         target:
           entity:
             domain: sensor
-            multiple: true
-
-variables:
-  waiting_for_button: "{{ state_attr('automation.' ~ automation.id, 'waiting_for_button') | default(false) }}"
-  keep_power: "{{ state_attr('automation.' ~ automation.id, 'keep_power') | default(false) }}"
+          multiple: true
 
 mode: single
 max_exceeded: silent
@@ -69,7 +65,7 @@ action:
             value_template: "{{ waiting_for_button }}"
         sequence:
           - variables:
-              keep_power: "{{ true }}"
+              keep_power: true
 
   # 4. 判断空调控制逻辑（带门状态二次检查）
   - choose:
