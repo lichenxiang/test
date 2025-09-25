@@ -1,5 +1,5 @@
 blueprint:
-  name: "民宿节电逻辑（完全零配置，多随意贴）"
+  name: "民宿节电逻辑（完全零配置，多随意贴兼容版）"
   description: "门关闭触发空调延时，随意贴可保持供电，内置临时状态，无需用户创建 timer 或 input_boolean"
   domain: automation
   input:
@@ -25,10 +25,9 @@ blueprint:
       name: 随意贴
       description: "一个或多个随意贴按钮"
       selector:
-        target:
-          entity:
-            domain: sensor
-          multiple: true
+        entity:
+          domain: sensor
+          multiple: true  # ✅ 关键修改：直接在 entity 下声明多选
 
 mode: single
 max_exceeded: silent
