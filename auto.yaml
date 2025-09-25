@@ -1,6 +1,6 @@
 blueprint:
-  name: "民宿节电逻辑（可导入版）"
-  description: "门关闭触发空调延时，随意贴可保持供电，支持多随意贴，自动取消误断电"
+  name: "民宿节电逻辑（彻底可导入版）"
+  description: "门关闭触发空调延时，随意贴可保持供电，支持多随意贴，等待期间门打开取消断电"
   domain: automation
   input:
     door_sensor:
@@ -38,14 +38,19 @@ trigger:
     to: 'off'
 
 action:
+  # 保存实体 ID 到变量
   - variables:
+      door: !input door_sensor
+      ac_switch: !input air_conditioner
+      speaker: !input xiaoai_speaker
+      buttons: !input mesh_buttons
       waiting_for_button: true
       keep_power: false
 
-  # 播报
+  # 播报提示
   - service: media_player.play_media
     target:
-      entity_id: !input xiaoai_speaker
+      entity_id: "{{ speaker }}"
     data:
       media_content_type: music
       media_content_id: "您好，您需要在1分钟内按下取点按钮保持空调不断电"
@@ -53,10 +58,10 @@ action:
   # 等待随意贴按下或门打开
   - wait_for_trigger:
       - platform: state
-        entity_id: !input mesh_buttons
+        entity_id: "{{ buttons }}"
         to: 'on'
       - platform: state
-        entity_id: !input door_sensor
+        entity_id: "{{ door }}"
         to: 'on'
     timeout: '00:01:00'
     continue_on_timeout: true
@@ -65,12 +70,12 @@ action:
 
   # 判断触发源
   - choose:
-      # 如果是随意贴按下
+      # 如果随意贴按下
       - conditions:
           - condition: template
             value_template: >
-              {% set buttons = expand(!input mesh_buttons) | map(attribute='entity_id') | list %}
-              {{ triggered_entity in buttons }}
+              {% set button_ids = expand(buttons) | map(attribute='entity_id') | list %}
+              {{ triggered_entity in button_ids }}
         sequence:
           - variables:
               keep_power: true
@@ -78,7 +83,7 @@ action:
       # 如果等待期间门打开
       - conditions:
           - condition: state
-            entity_id: !input door_sensor
+            entity_id: "{{ door }}"
             state: 'on'
         sequence:
           - variables:
@@ -86,6 +91,7 @@ action:
 
   # 空调控制
   - choose:
+      # 如果保持供电
       - conditions:
           - condition: template
             value_template: "{{ keep_power }}"
@@ -94,19 +100,20 @@ action:
             data:
               name: "空调控制"
               message: "随意贴按下或门打开，保持供电，不断电"
+      # 如果断电
       - conditions:
           - condition: template
             value_template: >
-              {% set door_state = states(!input door_sensor) %}
+              {% set door_state = states(door) %}
               {{ not keep_power and door_state.state == 'off' }}
         sequence:
           - service: switch.turn_off
             target:
-              entity_id: !input air_conditioner
+              entity_id: "{{ ac_switch }}"
           - delay: '00:00:03'
           - service: switch.turn_on
             target:
-              entity_id: !input air_conditioner
+              entity_id: "{{ ac_switch }}"
 
   # 清理临时状态
   - variables:
