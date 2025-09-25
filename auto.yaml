@@ -1,29 +1,25 @@
 blueprint:
-  name: "民宿节电逻辑（彻底可导入版）"
+  name: "民宿节电逻辑（可导入无报错版）"
   description: "门关闭触发空调延时，随意贴可保持供电，支持多随意贴，等待期间门打开取消断电"
   domain: automation
   input:
     door_sensor:
       name: 门磁
-      description: "门磁传感器"
       selector:
         entity:
           domain: binary_sensor
     air_conditioner:
       name: 智能开关（空调）
-      description: "控制空调的开关"
       selector:
         entity:
           domain: switch
     xiaoai_speaker:
       name: 小爱音箱
-      description: "播报语音的媒体播放器"
       selector:
         entity:
           domain: media_player
     mesh_buttons:
       name: 随意贴
-      description: "一个或多个随意贴按钮"
       selector:
         entity:
           domain: sensor
@@ -41,13 +37,13 @@ action:
   # 保存实体 ID 到变量
   - variables:
       door: !input door_sensor
-      ac_switch: !input air_conditioner
+      ac: !input air_conditioner
       speaker: !input xiaoai_speaker
       buttons: !input mesh_buttons
       waiting_for_button: true
       keep_power: false
 
-  # 播报提示
+  # 播报
   - service: media_player.play_media
     target:
       entity_id: "{{ speaker }}"
@@ -70,7 +66,7 @@ action:
 
   # 判断触发源
   - choose:
-      # 如果随意贴按下
+      # 随意贴按下
       - conditions:
           - condition: template
             value_template: >
@@ -80,7 +76,7 @@ action:
           - variables:
               keep_power: true
 
-      # 如果等待期间门打开
+      # 门在等待期间打开
       - conditions:
           - condition: state
             entity_id: "{{ door }}"
@@ -91,7 +87,7 @@ action:
 
   # 空调控制
   - choose:
-      # 如果保持供电
+      # 保持供电
       - conditions:
           - condition: template
             value_template: "{{ keep_power }}"
@@ -100,7 +96,7 @@ action:
             data:
               name: "空调控制"
               message: "随意贴按下或门打开，保持供电，不断电"
-      # 如果断电
+      # 断电后上电
       - conditions:
           - condition: template
             value_template: >
@@ -109,11 +105,11 @@ action:
         sequence:
           - service: switch.turn_off
             target:
-              entity_id: "{{ ac_switch }}"
+              entity_id: "{{ ac }}"
           - delay: '00:00:03'
           - service: switch.turn_on
             target:
-              entity_id: "{{ ac_switch }}"
+              entity_id: "{{ ac }}"
 
   # 清理临时状态
   - variables:
