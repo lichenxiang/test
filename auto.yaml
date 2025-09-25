@@ -27,7 +27,7 @@ blueprint:
       selector:
         entity:
           domain: sensor
-          multiple: true  # ✅ 支持多选，HA 2025.x 兼容写法
+          multiple: true
 
 mode: single
 max_exceeded: silent
@@ -35,7 +35,7 @@ max_exceeded: silent
 trigger:
   - platform: state
     entity_id: !input door_sensor
-    to: 'off'  # 门关闭触发
+    to: 'off'
 
 action:
   # 初始化临时状态
@@ -58,10 +58,9 @@ action:
         to: 'on'
       - platform: state
         entity_id: !input door_sensor
-        to: 'on'  # 门打开
+        to: 'on'
     timeout: '00:01:00'
     continue_on_timeout: true
-    # 保存触发信息
     variables:
       trigger_entity: "{{ trigger.entity_id }}"
 
@@ -69,16 +68,15 @@ action:
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ trigger_entity in expand(!input.mesh_buttons) | map(attribute='entity_id') | list }}"
+            value_template: "{{ trigger_entity in expand(!input mesh_buttons) | map(attribute='entity_id') | list }}"
         sequence:
           - variables:
               keep_power: true
       - conditions:
           - condition: state
-            entity_id: !input.door_sensor
+            entity_id: !input door_sensor
             state: 'on'
         sequence:
-          # 门打开 → 取消断电逻辑
           - variables:
               keep_power: true
 
@@ -94,17 +92,17 @@ action:
               message: "随意贴按下或门打开，保持供电，不断电"
       - conditions:
           - condition: template
-            value_template: "{{ not keep_power and is_state(!input.door_sensor, 'off') }}"
+            value_template: "{{ not keep_power and is_state(!input door_sensor, 'off') }}"
         sequence:
           - service: switch.turn_off
             target:
-              entity_id: !input.air_conditioner
+              entity_id: !input air_conditioner
           - delay: '00:00:03'
           - service: switch.turn_on
             target:
-              entity_id: !input.air_conditioner
+              entity_id: !input air_conditioner
 
-              # 清理临时状态
+  # 清理临时状态
   - variables:
       waiting_for_button: false
       keep_power: false
