@@ -36,29 +36,30 @@ max_exceeded: silent
 trigger:
   - platform: state
     entity_id: !input door_sensor
-    to: 'off'   # 门关闭
+    to: 'off'
 
 action:
-  # 1. 初始化临时状态（内置）
+  # 临时状态
   - variables:
       waiting_for_button: true
       keep_power: false
 
-  # 2. 播报提示
+  # 播报提示
   - service: media_player.play_media
     target:
       entity_id: !input xiaoai_speaker
     data:
-      media_content_type: 'music'
+      media_content_type: music
       media_content_id: "您好，您需要在1分钟内按下取点按钮保持空调不断电"
 
-  # 3. 等待随意贴按下或超时 1 分钟
+  # 等待随意贴按下或超时 1 分钟
   - wait_for_trigger:
       - platform: state
         entity_id: !input mesh_buttons
         to: 'on'
     timeout: '00:01:00'
     continue_on_timeout: true
+
   - choose:
       - conditions:
           - condition: template
@@ -67,7 +68,7 @@ action:
           - variables:
               keep_power: true
 
-  # 4. 判断空调控制逻辑（带门状态二次检查）
+  # 判断空调控制逻辑（带二次门状态检查）
   - choose:
       - conditions:
           - condition: template
@@ -87,9 +88,4 @@ action:
           - delay: '00:00:03'
           - service: switch.turn_on
             target:
-              entity_id: !input air_conditioner
-
-  # 5. 清理临时状态
-  - variables:
-      waiting_for_button: false
-      keep_power: false
+              entity_id: !input air_condit
