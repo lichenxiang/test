@@ -1,6 +1,6 @@
 blueprint:
-  name: "民宿节电逻辑（完全零配置，多随意贴兼容版）"
-  description: "门关闭触发空调延时，随意贴可保持供电，内置临时状态，无需用户创建 timer 或 input_boolean"
+  name: "民宿节电逻辑（修正版，多随意贴兼容版）"
+  description: "门关闭触发空调延时，随意贴可保持供电，支持多随意贴，自动取消误断电"
   domain: automation
   input:
     door_sensor:
@@ -27,7 +27,7 @@ blueprint:
       selector:
         entity:
           domain: sensor
-          multiple: true  # ✅ 关键修改：直接在 entity 下声明多选
+          multiple: true  # ✅ 支持多选，HA 2025.x 兼容写法
 
 mode: single
 max_exceeded: silent
@@ -35,7 +35,7 @@ max_exceeded: silent
 trigger:
   - platform: state
     entity_id: !input door_sensor
-    to: 'off'  # 门关闭
+    to: 'off'  # 门关闭触发
 
 action:
   # 初始化临时状态
@@ -51,24 +51,38 @@ action:
       media_content_type: music
       media_content_id: "您好，您需要在1分钟内按下取点按钮保持空调不断电"
 
-  # 等待随意贴按下或超时 1 分钟
+  # 等待随意贴按下或超时 1 分钟，同时监控门状态
   - wait_for_trigger:
       - platform: state
         entity_id: !input mesh_buttons
         to: 'on'
+      - platform: state
+        entity_id: !input door_sensor
+        to: 'on'  # 门打开
     timeout: '00:01:00'
     continue_on_timeout: true
+    # 保存触发信息
+    variables:
+      trigger_entity: "{{ trigger.entity_id }}"
 
-  # 判断随意贴是否按下
+  # 判断触发源
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ waiting_for_button }}"
+            value_template: "{{ trigger_entity in expand(!input.mesh_buttons) | map(attribute='entity_id') | list }}"
         sequence:
           - variables:
               keep_power: true
+      - conditions:
+          - condition: state
+            entity_id: !input.door_sensor
+            state: 'on'
+        sequence:
+          # 门打开 → 取消断电逻辑
+          - variables:
+              keep_power: true
 
-  # 空调控制逻辑（带二次门状态检查）
+  # 空调控制逻辑
   - choose:
       - conditions:
           - condition: template
@@ -77,20 +91,20 @@ action:
           - service: logbook.log
             data:
               name: "空调控制"
-              message: "随意贴按下，保持供电，不断电"
+              message: "随意贴按下或门打开，保持供电，不断电"
       - conditions:
           - condition: template
-            value_template: "{{ not keep_power and is_state(!input door_sensor, 'off') }}"
+            value_template: "{{ not keep_power and is_state(!input.door_sensor, 'off') }}"
         sequence:
           - service: switch.turn_off
             target:
-              entity_id: !input air_conditioner
+              entity_id: !input.air_conditioner
           - delay: '00:00:03'
           - service: switch.turn_on
             target:
-              entity_id: !input air_conditioner
+              entity_id: !input.air_conditioner
 
-  # 清理临时状态
+              # 清理临时状态
   - variables:
       waiting_for_button: false
       keep_power: false
