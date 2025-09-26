@@ -1,0 +1,45 @@
+blueprint:
+  name: "Tuya WiFi 门磁控制多插座断电再上电"
+  description: "门关闭时触发多个 Tuya WiFi 插座断电 3 秒后上电"
+  domain: automation
+  input:
+    door_sensor:
+      name: 门磁
+      description: "Tuya WiFi 门磁传感器"
+      selector:
+        entity:
+          domain: binary_sensor  # 门磁必须是二进制传感器
+    switch_sockets:
+      name: 插座
+      description: "一个或多个 Tuya WiFi 插座"
+      selector:
+        entity:
+          domain: switch
+          multiple: true  # 支持选择多个插座
+
+mode: single  # 同一时间只允许一个自动化执行
+max_exceeded: silent  # 如果再次触发，不报错，也不执行
+
+trigger:
+  - platform: state
+    entity_id: !input door_sensor
+    to: 'off'  # 当门关闭时触发
+
+action:
+  # 保存实体到变量，方便模板引用
+  - variables:
+      door: !input door_sensor
+      sockets: !input switch_sockets
+
+  # 步骤1：断电所有插座
+  - service: switch.turn_off
+    target:
+      entity_id: "{{ sockets }}"
+
+  # 步骤2：等待3秒
+  - delay: '00:00:03'
+
+  # 步骤3：上电所有插座
+  - service: switch.turn_on
+    target:
+      entity_id: "{{ sockets }}"
