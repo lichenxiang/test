@@ -23,6 +23,7 @@ max_exceeded: silent  # 如果再次触发，不报错，也不执行
 trigger:
   - platform: state
     entity_id: !input door_sensor
+    from: 'on'
     to: 'off'  # 当门关闭时触发
 
 action:
