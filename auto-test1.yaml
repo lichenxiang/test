@@ -1,6 +1,6 @@
 blueprint:
-  name: "门磁控制小爱音箱 + V6 Mesh 点动开关（可选点动时间）"
-  description: "门开关时，小爱音箱播报状态；门关时触发 V6 Mesh 点动开关，点动时间可选"
+  name: "门磁控制小爱音箱 + V6 Mesh 开关断电再上电"
+  description: "门开关时，小爱音箱播报状态；门关时触发 V6 Mesh 开关断电3秒再来电"
   domain: automation
 
   input:
@@ -18,17 +18,11 @@ blueprint:
           entity:
             domain: notify
     mesh_switch:
-      name: V6 Mesh 点动开关按钮
-      description: "请选择 V6 Mesh 点动开关的 button 实体"
+      name: V6 Mesh 开关
+      description: "请选择 V6 Mesh 开关实体（switch）"
       selector:
         entity:
-          domain: button
-    mesh_inching_time:
-      name: 点动时间实体
-      description: "请选择 V6 Mesh 点动时间 number 实体"
-      selector:
-        entity:
-          domain: number
+          domain: switch
 
 trigger:
   - platform: state
@@ -50,7 +44,7 @@ action:
             data:
               message: "门已打开"
 
-      # 门关闭播报 + Mesh 点动开关
+      # 门关闭播报 + Mesh 开关断电3秒再来电
       - conditions:
           - condition: state
             entity_id: !input door_sensor
@@ -61,14 +55,15 @@ action:
             target: !input speaker
             data:
               message: "门已关闭"
-          # 设置点动时间
-          - service: number.set_value
+          # 断电
+          - service: switch.turn_off
             target:
-              entity_id: !input mesh_inching_time
-            data:
-              value: 3  # 这里可以固定为3秒
-          # 按一次 button 执行点动
-          - service: button.press
+              entity_id: !input mesh_switch
+          # 延时3秒
+          - delay:
+              seconds: 3
+          # 上电
+          - service: switch.turn_on
             target:
               entity_id: !input mesh_switch
 
