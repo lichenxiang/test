@@ -1,6 +1,6 @@
 blueprint:
-  name: "门磁控制小爱音箱 + V6 Mesh 开关断电再上电"
-  description: "门开关时，小爱音箱播报状态；门关时触发 V6 Mesh 开关断电3秒再来电"
+  name: "门磁控制小爱音箱 + V6 Mesh 开关 + 随意贴按钮（安全多设备 event版 v2）"
+  description: "门开关触发小爱音箱播报；门关触发 Mesh 开关断电3秒再来电；BLE随意贴按钮点击播报（event方式）。"
   domain: automation
 
   input:
@@ -23,18 +23,35 @@ blueprint:
       selector:
         entity:
           domain: switch
+    ble_buttons:
+      name: 随意贴按钮（可选 event 实体）
+      description: "选择一个或多个 BLE 按钮事件实体"
+      default: []
+      selector:
+        entity:
+          domain: event
+          multiple: true
 
 trigger:
+  # 门磁状态变化
   - platform: state
+    id: door_trigger
     entity_id: !input door_sensor
     to:
       - "on"
       - "off"
 
+  # BLE 随意贴按钮事件
+  - platform: state
+    id: ble_button_trigger
+    entity_id: !input ble_buttons
+
 action:
   - choose:
-      # 门打开播报
+      # 门打开
       - conditions:
+          - condition: trigger
+            id: door_trigger
           - condition: state
             entity_id: !input door_sensor
             state: "on"
@@ -44,27 +61,35 @@ action:
             data:
               message: "门已打开"
 
-      # 门关闭播报 + Mesh 开关断电3秒再来电
+      # 门关闭 + Mesh 开关断电3秒
       - conditions:
+          - condition: trigger
+            id: door_trigger
           - condition: state
             entity_id: !input door_sensor
             state: "off"
         sequence:
-          # 播报门已关闭
           - service: notify.send_message
             target: !input speaker
             data:
               message: "门已关闭"
-          # 断电
           - service: switch.turn_off
             target:
               entity_id: !input mesh_switch
-          # 延时3秒
           - delay:
               seconds: 3
-          # 上电
           - service: switch.turn_on
             target:
               entity_id: !input mesh_switch
+
+      # BLE 随意贴按钮事件
+      - conditions:
+          - condition: trigger
+            id: ble_button_trigger
+        sequence:
+          - service: notify.send_message
+            target: !input speaker
+            data:
+              message: "按钮被点击"
 
 mode: single
