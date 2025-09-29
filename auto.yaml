@@ -13,11 +13,11 @@ blueprint:
       selector:
         entity:
           domain: switch
-    xiaoai_speaker:
-      name: 小爱音箱
+    xiaoai_notify:
+      name: 小爱音箱（notify实体）
       selector:
         entity:
-          domain: media_player
+          domain: notify
     mesh_buttons:
       name: 随意贴
       selector:
@@ -38,18 +38,15 @@ action:
   - variables:
       door: !input door_sensor
       ac: !input air_conditioner
-      speaker: !input xiaoai_speaker
+      speaker: !input xiaoai_notify
       buttons: !input mesh_buttons
       waiting_for_button: true
       keep_power: false
 
-  # 播报
-  - service: media_player.play_media
-    target:
-      entity_id: "{{ speaker }}"
+  # 播报（改为notify）
+  - service: "{{ speaker }}"
     data:
-      media_content_type: music
-      media_content_id: "您好，您需要在1分钟内按下取点按钮保持空调不断电"
+      message: "您好，您需要在1分钟内按下取点按钮保持空调不断电"
 
   # 等待随意贴按下或门打开
   - wait_for_trigger:
