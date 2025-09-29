@@ -1,0 +1,76 @@
+blueprint:
+  name: "民宿节电逻辑（多随意贴事件版）"
+  description: "门关闭触发空调延时，BLE Mesh随意贴按下保持供电，等待期间门打开取消断电"
+  domain: automation
+  input:
+    door_sensor:
+      name: 门磁
+      selector:
+        entity:
+          domain: binary_sensor
+    air_conditioner:
+      name: 智能开关（空调）
+      selector:
+        entity:
+          domain: switch
+    xiaoai_notify:
+      name: 小爱音箱（notify实体）
+      selector:
+        entity:
+          domain: notify
+    mesh_events:
+      name: 随意贴事件（可多选）
+      selector:
+        event:
+          multiple: true
+
+mode: single
+max_exceeded: silent
+
+trigger:
+  - platform: state
+    entity_id: !input door_sensor
+    to: 'off'
+
+action:
+  # 播报提示
+  - service: !input xiaoai_notify
+    data:
+      message: "您好，您需要在1分钟内按下随意贴按钮保持空调不断电"
+
+  # 等待随意贴按下或门打开
+  - wait_for_trigger:
+      - platform: event
+        event_type: "{{ mesh_events }}"
+      - platform: state
+        entity_id: !input door_sensor
+        to: 'on'
+    timeout: '00:01:00'
+    continue_on_timeout: true
+
+  # 空调控制
+  - choose:
+      # 保持供电条件：随意贴按下或门打开
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.event is not none or states('!input door_sensor') == 'on' }}
+        sequence:
+          - service: logbook.log
+            data:
+              name: "空调控制"
+              message: "随意贴按下或门打开，保持供电，不断电"
+
+      # 超时断电再上电条件：门仍关闭且随意贴未按
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ trigger.event is none and states('!input door_sensor') == 'off' }}
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input air_conditioner
+          - delay: '00:00:03'
+          - service: switch.turn_on
+            target:
+              entity_id: !input air_conditioner

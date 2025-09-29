@@ -1,0 +1,47 @@
+blueprint:
+  name: "门磁控制小爱音箱播报（可选音箱）"
+  description: "门开关时，小爱音箱播报状态"
+  domain: automation
+
+  input:
+    door_sensor:
+      name: 门磁传感器
+      selector:
+        entity:
+          domain: binary_sensor
+    speaker:
+      name: 小爱音箱
+      description: "选择一个或多个小爱音箱实体"
+      selector:
+        target:
+          entity:
+            domain: notify
+
+trigger:
+  - platform: state
+    entity_id: !input door_sensor
+    to:
+      - "on"
+      - "off"
+
+action:
+  - choose:
+      - conditions:
+          - condition: state
+            entity_id: !input door_sensor
+            state: "on"
+        sequence:
+          - service: notify.send_message
+            target: !input speaker
+            data:
+              message: "门已打开"
+      - conditions:
+          - condition: state
+            entity_id: !input door_sensor
+            state: "off"
+        sequence:
+          - service: notify.send_message
+            target: !input speaker
+            data:
+              message: "门已关闭"
+mode: single
